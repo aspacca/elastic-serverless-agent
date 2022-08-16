@@ -8,7 +8,7 @@ from unittest import TestCase
 
 import pytest
 
-from share import IncludeExcludeFilter, IncludeExcludeRule
+from share import IncludeExcludeFilter
 
 _message = "a message"
 
@@ -21,38 +21,38 @@ class TestIncludeExclude(TestCase):
             assert include_exclude_filter.filter(_message) is True
 
         with self.subTest("exclude rule match"):
-            include_exclude_filter = IncludeExcludeFilter(exclude_patterns=[IncludeExcludeRule(pattern="message")])
+            include_exclude_filter = IncludeExcludeFilter(exclude_patterns=["message"])
             assert include_exclude_filter.filter(_message) is False
 
         with self.subTest("exclude rule not match"):
-            include_exclude_filter = IncludeExcludeFilter(exclude_patterns=[IncludeExcludeRule(pattern="not matching")])
+            include_exclude_filter = IncludeExcludeFilter(exclude_patterns=["not matching"])
             assert include_exclude_filter.filter(_message) is True
 
         with self.subTest("include rule match"):
-            include_exclude_filter = IncludeExcludeFilter(include_patterns=[IncludeExcludeRule(pattern="message")])
+            include_exclude_filter = IncludeExcludeFilter(include_patterns=["message"])
             assert include_exclude_filter.filter(_message) is True
 
         with self.subTest("include rule not match"):
-            include_exclude_filter = IncludeExcludeFilter(include_patterns=[IncludeExcludeRule(pattern="not matching")])
+            include_exclude_filter = IncludeExcludeFilter(include_patterns=["not matching"])
             assert include_exclude_filter.filter(_message) is False
 
         with self.subTest("both rules exclude priority"):
             include_exclude_filter = IncludeExcludeFilter(
-                include_patterns=[IncludeExcludeRule(pattern="message")],
-                exclude_patterns=[IncludeExcludeRule(pattern="message")],
+                include_patterns=["message"],
+                exclude_patterns=["message"],
             )
             assert include_exclude_filter.filter(_message) is False
 
         with self.subTest("both rules include match"):
             include_exclude_filter = IncludeExcludeFilter(
-                include_patterns=[IncludeExcludeRule(pattern="message")],
-                exclude_patterns=[IncludeExcludeRule(pattern="not matching")],
+                include_patterns=["message"],
+                exclude_patterns=["not matching"],
             )
             assert include_exclude_filter.filter(_message) is True
 
         with self.subTest("both rules no match"):
             include_exclude_filter = IncludeExcludeFilter(
-                include_patterns=[IncludeExcludeRule(pattern="not matching")],
-                exclude_patterns=[IncludeExcludeRule(pattern="not matching")],
+                include_patterns=["not matching"],
+                exclude_patterns=["not matching"],
             )
             assert include_exclude_filter.filter(_message) is False

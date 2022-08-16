@@ -104,7 +104,7 @@ Metadata:
     Author: %sarAuthorName%
     Labels: ['s3', 'logs', 'analytics', 'observability', 'monitoring', 'Elastic']
     SemanticVersion: %semanticVersion%
-    LicenseUrl: %codeUri%/LICENSE.txt
+    LicenseUrl: %codeUri%/LICENSE
     ReadmeUrl: %codeUri%/README.md
     HomePageUrl: https://github.com/elastic/elastic-serverless-forwarder
     SourceCodeUrl: https://github.com/elastic/elastic-serverless-forwarder

@@ -54,11 +54,10 @@ Resources:
     Properties:
       Timeout: 900
       MemorySize: 512
-      CodeUri: %codeUri%
-      Runtime: python3.9
+      ImageUri: elasticserverlessforwarder:%semanticVersion%
+      PackageType: Image
       Architectures:
         - x86_64
-      Handler: main_aws.handler
       Environment:
           Variables:
               S3_CONFIG_FILE: !Ref ElasticServerlessForwarderS3ConfigFile
@@ -82,6 +81,6 @@ Metadata:
         Deploy elastic-serverless-forwarder instead. This is a helper SAM template for the application and not intended to be deployed on its own.
     Author: %sarAuthorName%
     SemanticVersion: %semanticVersion%
-    LicenseUrl: %codeUri%/LICENSE.txt
+    LicenseUrl: %codeUri%/LICENSE
     HomePageUrl: https://github.com/elastic/elastic-serverless-forwarder
     SourceCodeUrl: https://github.com/elastic/elastic-serverless-forwarder

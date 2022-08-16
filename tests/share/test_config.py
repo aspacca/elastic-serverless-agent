@@ -1415,14 +1415,8 @@ class TestParseConfig(TestCase):
             assert input_sqs.type == "s3-sqs"
             assert input_sqs.id == "id"
             assert input_sqs.include_exclude_filter == IncludeExcludeFilter(
-                include_patterns=[
-                    IncludeExcludeRule(pattern="include_pattern1"),
-                    IncludeExcludeRule(pattern="include_pattern2"),
-                ],
-                exclude_patterns=[
-                    IncludeExcludeRule(pattern="exclude_pattern1"),
-                    IncludeExcludeRule(pattern="exclude_pattern2"),
-                ],
+                include_patterns=["include_pattern1", "include_pattern2"],
+                exclude_patterns=["exclude_pattern1", "exclude_pattern2"],
             )
 
             elasticsearch = input_sqs.get_output_by_type(output_type="elasticsearch")

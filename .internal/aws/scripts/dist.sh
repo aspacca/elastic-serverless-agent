@@ -31,9 +31,9 @@ ACCOUNT_ID="$4"
 REGION="$5"
 SAR_AUTHOR_NAME="${6:-Elastic}"
 TMPDIR=$(mktemp -d /tmp/dist.XXXXXXXXXX)
-CODE_URI="${TMPDIR}/sources"
+CODE_URI="${TMPDIR}/application"
 
-#trap "rm -rf ${TMPDIR}" EXIT
+trap 'rm -rf ${TMPDIR}' EXIT
 
 aws s3api get-bucket-location --bucket "${BUCKET}" || aws s3api create-bucket --acl private --bucket "${BUCKET}" --region "${REGION}" --create-bucket-configuration LocationConstraint="${REGION}"
 
@@ -59,13 +59,18 @@ cat <<EOF > "${TMPDIR}/policy.json"
 EOF
 
 aws s3api put-bucket-policy --bucket "${BUCKET}" --policy "file://${TMPDIR}/policy.json"
+
 mkdir -v -p "${CODE_URI}"
+cp -v .internal/aws/vectorscan/Dockerfile "${CODE_URI}/Dockerfile"
 cp -v requirements.txt "${CODE_URI}/"
 cp -v main_aws.py "${CODE_URI}/"
 find {handlers,share,shippers,storage} -not -name "*__pycache__*" -type d -print0|xargs -t -0 -Idirname mkdir -v -p "${CODE_URI}/dirname"
 find {handlers,share,shippers,storage} -not -name "*__pycache__*" -name "*.py" -exec cp -v '{}' "${CODE_URI}/{}" \;
-cp -v LICENSE.txt "${CODE_URI}/LICENSE.txt"
+cp -v LICENSE.txt "${CODE_URI}/LICENSE"
 cp -v docs/README-AWS.md "${CODE_URI}/README.md"
+
+aws ecr get-login-password --region "${REGION}" | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+docker build "${CODE_URI}" --platform=linux/amd64 -t "elasticserverlessforwarder:${SEMANTIC_VERSION}"
 
 sed -e "s|%codeUri%|${CODE_URI}|g" -e "s/%sarAppName%/${SAR_APP_NAME}/g" -e "s/%sarAuthorName%/${SAR_AUTHOR_NAME}/g" -e "s/%semanticVersion%/${SEMANTIC_VERSION}/g" -e "s/%awsRegion%/${REGION}/g" .internal/aws/cloudformation/macro.yaml > "${TMPDIR}/macro.yaml"
 sed -e "s|%codeUri%|${CODE_URI}|g" -e "s/%sarAppName%/${SAR_APP_NAME}/g" -e "s/%sarAuthorName%/${SAR_AUTHOR_NAME}/g" -e "s/%semanticVersion%/${SEMANTIC_VERSION}/g" -e "s/%awsRegion%/${REGION}/g" -e "s/%accountID%/${ACCOUNT_ID}/g" .internal/aws/cloudformation/template.yaml > "${TMPDIR}/template.yaml"
@@ -76,7 +81,7 @@ sam package --template-file "${TMPDIR}/.aws-sam/build/macro/template.yaml" --out
 sam publish --template "${TMPDIR}/.aws-sam/build/macro/packaged.yaml" --region "${REGION}"
 
 sam build --debug --use-container --build-dir "${TMPDIR}/.aws-sam/build/application" --template-file "${TMPDIR}/application.yaml" --region "${REGION}"
-sam package --template-file "${TMPDIR}/.aws-sam/build/application/template.yaml" --output-template-file "${TMPDIR}/.aws-sam/build/application/packaged.yaml" --s3-bucket "${BUCKET}" --region "${REGION}"
+sam package --image-repository "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/elasticserverlessforwarder" --template-file "${TMPDIR}/.aws-sam/build/application/template.yaml" --output-template-file "${TMPDIR}/.aws-sam/build/application/packaged.yaml" --s3-bucket "${BUCKET}" --region "${REGION}"
 sam publish --template "${TMPDIR}/.aws-sam/build/application/packaged.yaml" --region "${REGION}"
 aws s3 cp "${TMPDIR}/.aws-sam/build/application/packaged.yaml" "s3://${BUCKET}/application.yaml"
 

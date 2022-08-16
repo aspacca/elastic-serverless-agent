@@ -7,7 +7,7 @@ from typing import Any, Callable, Optional
 import yaml
 
 from .factory import MultilineFactory
-from .include_exlude import IncludeExcludeFilter, IncludeExcludeRule
+from .include_exlude import IncludeExcludeFilter
 from .logger import logger as shared_logger
 from .multiline import ProtocolMultiline
 
@@ -440,27 +440,21 @@ def parse_config(
         if "json_content_type" in input_config:
             current_input.json_content_type = input_config["json_content_type"]
 
-        include_rules: list[IncludeExcludeRule] = []
+        include_patterns: list[str] = []
         if "include" in input_config:
-            include_rules_from_config = input_config["include"]
-            if not isinstance(include_rules_from_config, list):
+            include_patterns = input_config["include"]
+            if not isinstance(include_patterns, list):
                 raise ValueError(f'`include` must be provided as list for input {input_config["id"]}')
 
-            for include_rule in include_rules_from_config:
-                include_rules.append(IncludeExcludeRule(pattern=str(include_rule)))
-
-        exclude_rules: list[IncludeExcludeRule] = []
+        exclude_patterns: list[str] = []
         if "exclude" in input_config:
-            exclude_rules_from_config = input_config["exclude"]
-            if not isinstance(exclude_rules_from_config, list):
+            exclude_patterns = input_config["exclude"]
+            if not isinstance(exclude_patterns, list):
                 raise ValueError(f'`exclude` must be provided as list for input {input_config["id"]}')
 
-            for exclude_rule in exclude_rules_from_config:
-                exclude_rules.append(IncludeExcludeRule(pattern=str(exclude_rule)))
-
-        if len(include_rules) > 0 or len(exclude_rules) > 0:
+        if len(include_patterns) > 0 or len(exclude_patterns) > 0:
             current_input.include_exclude_filter = IncludeExcludeFilter(
-                include_patterns=include_rules, exclude_patterns=exclude_rules
+                include_patterns=include_patterns, exclude_patterns=exclude_patterns
             )
 
         if "outputs" not in input_config or not isinstance(input_config["outputs"], list):

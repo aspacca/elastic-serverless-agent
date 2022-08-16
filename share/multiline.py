@@ -5,9 +5,10 @@
 from __future__ import annotations
 
 import datetime
-import re
 from abc import ABCMeta
-from typing import Callable, Iterator, Optional, Protocol
+from typing import Any, Callable, Iterator, Optional, Protocol
+
+import hyperscan
 
 default_max_bytes: int = 10485760  # Default maximum number of bytes to return in one multi-line event
 default_max_lines: int = 500  # Default maximum number of lines to return in one multi-line event
@@ -223,6 +224,7 @@ class WhileMultiline(CommonMultiline):
         self._buffer: CollectBuffer = CollectBuffer(max_bytes, max_lines, skip_newline)
 
         self._pre_collect_buffer = True
+        self._hyperscan_matched = False
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, WhileMultiline):
@@ -237,18 +239,31 @@ class WhileMultiline(CommonMultiline):
         )
 
     def _setup_pattern_matcher(self, pattern: str, negate: bool) -> WhileMatcherCallable:
-        re_pattern: re.Pattern[bytes] = re.compile(pattern.encode("utf-8"))
+        hyperscan_db = hyperscan.Database()
+        hyperscan_db.compile(
+            expressions=[pattern.encode("utf-8")], ids=[1], elements=1, flags=[hyperscan.HS_FLAG_DOTALL]
+        )
 
-        matcher: WhileMatcherCallable = self._get_pattern_matcher(re_pattern)
+        matcher: WhileMatcherCallable = self._get_pattern_matcher(hyperscan_db)
         if negate:
             matcher = self._negated_matcher(matcher)
 
         return matcher
 
-    @staticmethod
-    def _get_pattern_matcher(pattern: re.Pattern[bytes]) -> WhileMatcherCallable:
+    def _get_pattern_matcher(self, hyperscan_db: Any) -> WhileMatcherCallable:
         def match(line: bytes) -> bool:
-            return pattern.search(line) is not None
+            self._hyperscan_matched = False
+
+            def on_match(
+                match_id: int, from_: int, to: int, flags: int, context: Optional[Any] = None
+            ) -> Optional[bool]:
+                if match_id > 0:
+                    self._hyperscan_matched = True
+
+                return None
+
+            hyperscan_db.scan(line, match_event_handler=on_match)
+            return self._hyperscan_matched
 
         return match
 
@@ -327,9 +342,15 @@ class PatternMultiline(CommonMultiline):
         self._matcher: PatternMatcherCallable = self._setup_pattern_matcher(pattern, match, negate)
 
         if flush_pattern:
-            self._flush_pattern: Optional[re.Pattern[bytes]] = re.compile(flush_pattern.encode("utf-8"))
+            self._flush_pattern: Optional[Any] = hyperscan.Database()
+            self._flush_pattern.compile(
+                expressions=[flush_pattern.encode("utf-8")], ids=[1], elements=1, flags=[hyperscan.HS_FLAG_DOTALL]
+            )
+
         else:
             self._flush_pattern = None
+
+        self._flush_pattern_matched = False
 
         self._buffer: CollectBuffer = CollectBuffer(max_bytes, max_lines, skip_newline)
         self._pre_collect_buffer: bool = True
@@ -348,7 +369,10 @@ class PatternMultiline(CommonMultiline):
         )
 
     def _setup_pattern_matcher(self, pattern: str, match: str, negate: bool) -> PatternMatcherCallable:
-        re_pattern: re.Pattern[bytes] = re.compile(pattern.encode("utf-8"))
+        hyperscan_db = hyperscan.Database()
+        hyperscan_db.compile(
+            expressions=[pattern.encode("utf-8")], ids=[1], elements=1, flags=[hyperscan.HS_FLAG_DOTALL]
+        )
 
         selector: Optional[SelectCallable] = None
         if match == "before":
@@ -358,17 +382,28 @@ class PatternMultiline(CommonMultiline):
 
         assert selector is not None
 
-        matcher: PatternMatcherCallable = self._get_pattern_matcher(re_pattern, selector)
+        matcher: PatternMatcherCallable = self._get_pattern_matcher(hyperscan_db, selector)
         if negate:
             matcher = self._negated_matcher(matcher)
 
         return matcher
 
-    @staticmethod
-    def _get_pattern_matcher(pattern: re.Pattern[bytes], selector: SelectCallable) -> PatternMatcherCallable:
+    def _get_pattern_matcher(self, hyperscan_db: Any, selector: SelectCallable) -> PatternMatcherCallable:
         def match(previous: bytes, current: bytes) -> bool:
             line: bytes = selector(previous, current)
-            return pattern.search(line) is not None
+
+            self._hyperscan_matched = False
+
+            def on_match(
+                match_id: int, from_: int, to: int, flags: int, context: Optional[Any] = None
+            ) -> Optional[bool]:
+                if match_id > 0:
+                    self._hyperscan_matched = True
+
+                return None
+
+            hyperscan_db.scan(line, match_event_handler=on_match)
+            return self._hyperscan_matched
 
         return match
 
@@ -390,6 +425,22 @@ class PatternMultiline(CommonMultiline):
     def _check_matcher(self) -> bool:
         return (self._match == "after" and len(self._buffer.previous) > 0) or self._match == "before"
 
+    def _flush_pattern_match(self, data: bytes) -> bool:
+        if not self._flush_pattern:
+            return False
+
+        self._flush_pattern_matched = False
+
+        def on_match(match_id: int, from_: int, to: int, flags: int, context: Optional[Any] = None) -> Optional[bool]:
+            if match_id > 0:
+                self._flush_pattern_matched = True
+
+            return None
+
+        self._flush_pattern.scan(data, match_event_handler=on_match)
+
+        return self._flush_pattern_matched
+
     def collect(self) -> Iterator[tuple[bytes, int, int]]:
         for data, newline, newline_length in self.feed:
             last_iteration_datetime: datetime.datetime = datetime.datetime.utcnow()
@@ -397,7 +448,7 @@ class PatternMultiline(CommonMultiline):
                 self._buffer.collect_and_reset()
                 self._buffer.grow(data, newline)
                 self._pre_collect_buffer = False
-            elif self._flush_pattern and self._flush_pattern.search(data) is not None:
+            elif self._flush_pattern_match(data):
                 self._buffer.grow(data, newline)
                 self._pre_collect_buffer = True
 

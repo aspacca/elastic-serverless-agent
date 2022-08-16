@@ -326,7 +326,7 @@ pattern_multiline_collect = [
     pytest.param(
         b"\n",
         b"line1\n\nline1.1\nline2\n\nline2.1\n",
-        "^.{0,0}$",
+        "^$",
         "after",
         "",
         False,
@@ -337,7 +337,7 @@ pattern_multiline_collect = [
     pytest.param(
         b"\r\n",
         b"line1\r\n\r\nline1.1\r\nline2\r\n\r\nline2.1\r\n",
-        "^.{0,0}$",
+        "^$",
         "after",
         "",
         False,
@@ -348,7 +348,7 @@ pattern_multiline_collect = [
     pytest.param(
         b"\n",
         b"line1 \n\nline1.1 \n\nline1.2\nline2 \n\nline2.1 \n\nline2.2\n",
-        "^.{0,0}$",
+        "^$",
         "before",
         "",
         False,
@@ -366,7 +366,7 @@ pattern_multiline_collect = [
     pytest.param(
         b"\r\n",
         b"line1 \r\n\r\nline1.1 \r\n\r\nline1.2\r\nline2 \r\n\r\nline2.1 \r\n\r\nline2.2\r\n",
-        "^.{0,0}$",
+        "^$",
         "before",
         "",
         False,
