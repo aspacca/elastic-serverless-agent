@@ -56,11 +56,14 @@ cat <<EOF > "${TMPDIR}/policy.json"
         },
         {
             "Effect": "Allow",
-            "Principal": {
-                "AWS":"${ACCOUNT_ID}"
-            },
+            "Principal": "*",
             "Action": "s3:*",
-            "Resource": ["arn:aws:s3:::${BUCKET}", "arn:aws:s3:::${BUCKET}/*"]
+            "Resource": ["arn:aws:s3:::${BUCKET}", "arn:aws:s3:::${BUCKET}/*"],
+            "Condition" : {
+                "StringEquals": {
+                    "aws:SourceAccount": "${ACCOUNT_ID}"
+                }
+            }
         }
     ]
 }
