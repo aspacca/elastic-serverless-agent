@@ -4,7 +4,7 @@ pytest-cov>=4.0.0,<4.1
 pytest-benchmark>=3.4.1,<4.1
 coverage>=7.1.0,<7.2
 localstack[runtime]>=1.4.0,<1.5
-docker==5.0.0 # Required pinned version by localstack
+docker==6.0.1 # Required pinned version by localstack
 simplejson>=3.18.3,<3.19
 orjson>=3.8.6,<3.9
 pysimdjson>=5.0.2,<5.1
