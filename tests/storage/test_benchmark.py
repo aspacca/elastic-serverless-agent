@@ -366,7 +366,7 @@ def test_json_collector_json_like_disabled(
         assert last_length == original_length
 
 
-@pytest.mark.benchmark(group="real content: ndjson without expand_event_list_from_field, json_content_type: None")
+@pytest.mark.benchmark(group="real content: ndjson, json_content_type: None")
 @pytest.mark.parametrize("json_parser,json_dumper", json_parser_and_dumper_params)
 def test_json_collector_ndjson_none(
     benchmark: pytest_benchmark.fixture.BenchmarkFixture,
@@ -385,7 +385,7 @@ def test_json_collector_ndjson_none(
             assert last_length == original_length
 
 
-@pytest.mark.benchmark(group="real content: ndjson without expand_event_list_from_field, json_content_type: ndjson")
+@pytest.mark.benchmark(group="real content: ndjson, json_content_type: ndjson")
 @pytest.mark.parametrize("json_parser,json_dumper", json_parser_and_dumper_params)
 def test_json_collector_ndjson_ndjson(
     benchmark: pytest_benchmark.fixture.BenchmarkFixture,
@@ -404,7 +404,7 @@ def test_json_collector_ndjson_ndjson(
             assert last_length == original_length
 
 
-@pytest.mark.benchmark(group="real content: ndjson with expand_event_list_from_field, json_content_type: None")
+@pytest.mark.benchmark(group="real content: single json with expand_event_list_from_field, json_content_type: None")
 @pytest.mark.parametrize("json_parser,json_dumper", json_parser_and_dumper_params)
 def test_json_collector_expanded_none(
     benchmark: pytest_benchmark.fixture.BenchmarkFixture,
@@ -423,7 +423,7 @@ def test_json_collector_expanded_none(
             assert last_length == original_length
 
 
-@pytest.mark.benchmark(group="real content: ndjson with expand_event_list_from_field, json_content_type: single")
+@pytest.mark.benchmark(group="real content: single json with expand_event_list_from_field, json_content_type: single")
 @pytest.mark.parametrize("json_parser,json_dumper", json_parser_and_dumper_params)
 def test_json_collector_expanded_single(
     benchmark: pytest_benchmark.fixture.BenchmarkFixture,
