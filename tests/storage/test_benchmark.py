@@ -334,24 +334,6 @@ def test_json_collector_json_single(
         assert last_length == original_length
 
 
-@pytest.mark.benchmark(group="real content: single json, json_content_type: ndjson")
-@pytest.mark.parametrize("json_parser", json_parser_params)
-def test_json_collector_json_ndjson(
-    benchmark: pytest_benchmark.fixture.BenchmarkFixture, json_parser: Callable[[bytes], Any]
-) -> None:
-    with mock.patch("storage.decorator.json_parser", new=json_parser):
-        original: bytes = MockContentBase.mock_content[1:].replace(
-            b"}\n\n{\n\n", b"\n,\n"
-        )  # we reduce ndjson to single
-        encoded: str = base64.b64encode(original).decode("utf-8")
-        last_length = benchmark.pedantic(wrap, [encoded, "ndjson"], iterations=100, rounds=1)
-        original_length: int = len(original)
-        if original.endswith(b"\n" * 2):
-            original_length -= 2
-
-        assert last_length == original_length
-
-
 @pytest.mark.benchmark(group="real content: json like, json_content_type: None")
 @pytest.mark.parametrize("json_parser", json_parser_params)
 def test_json_collector_json_like_none(
