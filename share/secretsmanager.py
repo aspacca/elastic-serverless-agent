@@ -7,7 +7,6 @@ from typing import Any, Union
 
 import boto3
 from botocore.client import BaseClient as BotoBaseClient
-from ujson import JSONDecodeError
 
 from .json import json_parser
 from .logger import logger as shared_logger
@@ -150,7 +149,7 @@ def parse_secrets_str(secrets: str, secret_arn: str) -> Union[str, dict[str, Any
 
     try:
         parsed_secrets: dict[str, str] = json_parser(secrets)
-    except JSONDecodeError:
+    except ValueError:
         shared_logger.debug("parsed secrets as plaintext")
         return secrets
     except Exception as e:

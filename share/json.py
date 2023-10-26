@@ -4,12 +4,33 @@
 
 from typing import Any, AnyStr
 
-import ujson
+import cysimdjson
+import rapidjson
+
+cysimdjson_parser = cysimdjson.JSONParser()
 
 
 def json_dumper(json_object: Any) -> str:
-    return ujson.dumps(json_object, ensure_ascii=False, reject_bytes=False)
+    s: str = ""
+    if (
+        isinstance(json_object, cysimdjson.JSONObject)
+        or isinstance(json_object, cysimdjson.JSONArray)
+        or isinstance(json_object, cysimdjson.JSONElement)
+    ):
+        s = rapidjson.dumps(json_object.export())
+        return s
+
+    s = rapidjson.dumps(json_object)
+    return s
 
 
-def json_parser(payload: AnyStr) -> Any:
-    return ujson.loads(payload)
+def json_parser(payload: AnyStr, export: bool = True) -> Any:
+    if isinstance(payload, str):
+        o = cysimdjson_parser.parse(payload.encode("utf-8"))
+    else:
+        o = cysimdjson_parser.parse(payload)
+
+    if export:
+        return o.export()
+
+    return o.get_value()

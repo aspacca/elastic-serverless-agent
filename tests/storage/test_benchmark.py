@@ -40,7 +40,7 @@ def json_parser_cysimdjson(payload: bytes) -> Any:
 
 
 def json_dumper_cysimdjson(json_object: Any) -> bytes:
-    return ujson.dumps(json_object.export()).encode("utf-8")
+    return rapidjson.dumps(json_object.export()).encode("utf-8")
 
 
 def json_parser_pysimdjson(payload: bytes) -> Any:
@@ -54,7 +54,7 @@ def json_dumper_pysimdjson(json_object: Any) -> bytes:
     if isinstance(json_object, simdjson.Object):
         return json_object.mini  # type:ignore
 
-    return ujson.dumps(json_object).encode("utf-8")
+    return rapidjson.dumps(json_object).encode("utf-8")
 
 
 def get_by_lines_parameters() -> list[tuple[int, str, bytes]]:
@@ -230,7 +230,6 @@ class Setup:
 def wrap(payload: str, json_content_type: Optional[str] = None, expand: bool = False) -> int:
     expander: Optional[ExpandEventListFromField] = None
     if expand:
-        # This is implementation specific to AWS and should not reside on share
         def resolver(_: str, field_to_expand_event_list_from: str) -> str:
             return field_to_expand_event_list_from
 

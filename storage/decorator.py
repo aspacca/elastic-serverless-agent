@@ -190,7 +190,7 @@ class JsonCollector:
             self._unfinished_line += data + newline
 
             # let's try to decode
-            json_object = json_parser(self._unfinished_line)
+            json_object = json_parser(self._unfinished_line, False)
 
             # it didn't raise: we collected a json object
             data_to_yield = self._unfinished_line

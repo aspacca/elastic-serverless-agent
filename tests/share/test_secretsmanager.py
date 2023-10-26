@@ -323,7 +323,7 @@ class TestAWSSecretsManager(TestCase):
 
             with self.assertRaisesRegex(
                 Exception,
-                "Expected string or C-contiguous bytes-like object while parsing "
+                "Argument 'event' has incorrect type \\(expected bytes, got int\\) while parsing "
                 "arn:aws:secretsmanager:eu-central-1:123456789:secret:plain_secret_not_str_in",
             ):
                 aws_sm_expander(config_yaml)

@@ -963,7 +963,7 @@ class TestLambdaHandlerFailure(TestCase):
             os.environ["S3_CONFIG_FILE"] = "s3://s3_config_file_bucket/s3_config_file_object_key"
             with self.assertRaisesRegex(
                 ConfigFileException,
-                "Expected string or C-contiguous bytes-like object while parsing "
+                "Argument 'event' has incorrect type \\(expected bytes, got int\\) while parsing "
                 "arn:aws:secretsmanager:eu-central-1:123456789:secret:plain_secret_not_str_int",
             ):
                 ctx = ContextMock()
