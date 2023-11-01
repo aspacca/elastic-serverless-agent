@@ -5,7 +5,7 @@
 import base64
 import random
 import string
-from typing import Any, Callable, Optional
+from typing import Any, AnyStr, Callable, Optional
 
 import cysimdjson
 import mock
@@ -35,26 +35,45 @@ cysimdjson_parser = cysimdjson.JSONParser()
 pysimdjson_parser = simdjson.Parser()
 
 
-def json_parser_cysimdjson(payload: bytes) -> Any:
-    return cysimdjson_parser.parse(payload).get_value()
+def json_parser_cysimdjson(payload: AnyStr, export: bool = True) -> Any:
+    if isinstance(payload, str):
+        o = cysimdjson_parser.parse(payload.encode("utf-8"))
+    else:
+        o = cysimdjson_parser.parse(payload)
+
+    if export:
+        return o.export()
+
+    return o.get_value()
 
 
-def json_dumper_cysimdjson(json_object: Any) -> bytes:
-    return rapidjson.dumps(json_object.export()).encode("utf-8")
+def json_dumper_cysimdjson(json_object: Any) -> str:
+    s: str = ""
+    if (
+        isinstance(json_object, cysimdjson.JSONObject)
+        or isinstance(json_object, cysimdjson.JSONArray)
+        or isinstance(json_object, cysimdjson.JSONElement)
+    ):
+        s = rapidjson.dumps(json_object.export())
+        return s
+
+    s = rapidjson.dumps(json_object)
+    return s
 
 
-def json_parser_pysimdjson(payload: bytes) -> Any:
+def json_parser_pysimdjson(payload: bytes, export: bool = True) -> Any:
     return pysimdjson_parser.parse(payload)
 
 
-def json_dumper_pysimdjson(json_object: Any) -> bytes:
+def json_dumper_pysimdjson(json_object: Any) -> str:
     if isinstance(json_object, simdjson.Array):
-        return json_object.mini  # type:ignore
+        return json_object.mini
 
     if isinstance(json_object, simdjson.Object):
-        return json_object.mini  # type:ignore
+        return json_object.mini
 
-    return rapidjson.dumps(json_object).encode("utf-8")
+    s: str = rapidjson.dumps(json_object)
+    return s
 
 
 def get_by_lines_parameters() -> list[tuple[int, str, bytes]]:
@@ -230,6 +249,7 @@ class Setup:
 def wrap(payload: str, json_content_type: Optional[str] = None, expand: bool = False) -> int:
     expander: Optional[ExpandEventListFromField] = None
     if expand:
+
         def resolver(_: str, field_to_expand_event_list_from: str) -> str:
             return field_to_expand_event_list_from
 
@@ -248,20 +268,20 @@ def wrap(payload: str, json_content_type: Optional[str] = None, expand: bool = F
 
 json_parser_params = [
     pytest.param(json_parser_cysimdjson, id="cysimdjson"),
-    pytest.param(lambda x: orjson.loads(x), id="orjson"),
+    pytest.param(lambda x, _: orjson.loads(x), id="orjson"),
     pytest.param(json_parser_pysimdjson, id="pysimdjson"),
-    pytest.param(lambda x: rapidjson.loads(x), id="rapidjson"),
-    pytest.param(lambda x: simplejson.loads(x), id="simplejson"),
-    pytest.param(lambda x: ujson.loads(x), id="ujson"),
+    pytest.param(lambda x, _: rapidjson.loads(x), id="rapidjson"),
+    pytest.param(lambda x, _: simplejson.loads(x), id="simplejson"),
+    pytest.param(lambda x, _: ujson.loads(x), id="ujson"),
 ]
 
 json_parser_and_dumper_params = [
     pytest.param(json_parser_cysimdjson, json_dumper_cysimdjson, id="cysimdjson"),
-    pytest.param(lambda x: orjson.loads(x), lambda x: orjson.dumps(x), id="orjson"),
+    pytest.param(lambda x, _: orjson.loads(x), lambda x: orjson.dumps(x).decode("utf-8"), id="orjson"),
     pytest.param(json_parser_pysimdjson, json_dumper_pysimdjson, id="pysimdjson"),
-    pytest.param(lambda x: rapidjson.loads(x), lambda x: rapidjson.dumps(x).encode("utf-8"), id="rapidjson"),
-    pytest.param(lambda x: simplejson.loads(x), lambda x: simplejson.dumps(x).encode("utf-8"), id="simplejson"),
-    pytest.param(lambda x: ujson.loads(x), lambda x: ujson.dumps(x).encode("utf-8"), id="ujson"),
+    pytest.param(lambda x, _: rapidjson.loads(x), lambda x: rapidjson.dumps(x), id="rapidjson"),
+    pytest.param(lambda x, _: simplejson.loads(x), lambda x: simplejson.dumps(x), id="simplejson"),
+    pytest.param(lambda x, _: ujson.loads(x), lambda x: ujson.dumps(x), id="ujson"),
 ]
 
 Setup.setup("ndjson")  # We generate an ndjson
