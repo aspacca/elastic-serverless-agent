@@ -23,6 +23,7 @@ from storage import PayloadStorage
 _LENGTH_1M: int = 1024**2
 _LENGTH_BELOW_THRESHOLD: int = 40
 _LENGTH_ABOVE_THRESHOLD: int = 1024 * 100
+_LENGTH_FOR_BENCHMARK: int = 1000 # benchmark should not hit circuit breaker
 
 _IS_PLAIN: str = "_IS_PLAIN"
 _IS_JSON: str = "_IS_JSON"
@@ -48,17 +49,14 @@ def json_parser_cysimdjson(payload: AnyStr, export: bool = True) -> Any:
 
 
 def json_dumper_cysimdjson(json_object: Any) -> str:
-    s: str = ""
     if (
         isinstance(json_object, cysimdjson.JSONObject)
         or isinstance(json_object, cysimdjson.JSONArray)
         or isinstance(json_object, cysimdjson.JSONElement)
     ):
-        s = rapidjson.dumps(json_object.export())
-        return s
+        return rapidjson.dumps(json_object.export())
 
-    s = rapidjson.dumps(json_object)
-    return s
+    return rapidjson.dumps(json_object)
 
 
 def json_parser_pysimdjson(payload: bytes, export: bool = True) -> Any:
@@ -67,13 +65,12 @@ def json_parser_pysimdjson(payload: bytes, export: bool = True) -> Any:
 
 def json_dumper_pysimdjson(json_object: Any) -> str:
     if isinstance(json_object, simdjson.Array):
-        return json_object.mini
+        return json_object.mini.decode("utf-8")
 
     if isinstance(json_object, simdjson.Object):
-        return json_object.mini
+        return json_object.mini.decode("utf-8")
 
-    s: str = rapidjson.dumps(json_object)
-    return s
+    return rapidjson.dumps(json_object)
 
 
 def get_by_lines_parameters() -> list[tuple[int, str, bytes]]:
@@ -236,7 +233,7 @@ class Setup:
     def setup(json_content_type: Optional[str]) -> None:
         if len(MockContentBase.mock_content) == 0:
             MockContentBase.init_content(
-                content_type=_IS_JSON, newline=b"\n", length_multiplier=_LENGTH_1M, json_content_type=json_content_type
+                content_type=_IS_JSON, newline=b"\n", length_multiplier=_LENGTH_FOR_BENCHMARK, json_content_type=json_content_type
             )
 
         if Setup.expanded_offset == -1:
@@ -295,7 +292,7 @@ def test_json_collector_plain_none(
     with mock.patch("storage.decorator.json_parser", new=json_parser):
         original: bytes = MockContentBase.mock_content[1:]  # we reduce ndjson to plaintext
         last_length = benchmark.pedantic(
-            wrap, [base64.b64encode(original).decode("utf-8"), None], iterations=100, rounds=1
+            wrap, [base64.b64encode(original).decode("utf-8"), None], iterations=100, rounds=10
         )
         original_length: int = len(original)
 
@@ -310,7 +307,7 @@ def test_json_collector_plain_disabled(
     with mock.patch("storage.decorator.json_parser", new=json_parser):
         original: bytes = MockContentBase.mock_content[1:]  # we reduce ndjson to plaintext
         last_length = benchmark.pedantic(
-            wrap, [base64.b64encode(original).decode("utf-8"), "disabled"], iterations=100, rounds=1
+            wrap, [base64.b64encode(original).decode("utf-8"), "disabled"], iterations=100, rounds=10
         )
         original_length: int = len(original)
 
@@ -323,11 +320,11 @@ def test_json_collector_json_none(
     benchmark: pytest_benchmark.fixture.BenchmarkFixture, json_parser: Callable[[bytes], Any]
 ) -> None:
     with mock.patch("storage.decorator.json_parser", new=json_parser):
-        original: bytes = MockContentBase.mock_content[1:].replace(
-            b"}\n\n{\n\n", b"\n,\n"
+        original: bytes = MockContentBase.mock_content.replace(
+            b"}\n{", b"\n,\n"
         )  # we reduce ndjson to single
         encoded: str = base64.b64encode(original).decode("utf-8")
-        last_length = benchmark.pedantic(wrap, [encoded, None], iterations=100, rounds=1)
+        last_length = benchmark.pedantic(wrap, [encoded, None], iterations=100, rounds=10)
         original_length: int = len(original)
         if original.endswith(b"\n" * 2):
             original_length -= 2
@@ -341,11 +338,11 @@ def test_json_collector_json_single(
     benchmark: pytest_benchmark.fixture.BenchmarkFixture, json_parser: Callable[[bytes], Any]
 ) -> None:
     with mock.patch("storage.decorator.json_parser", new=json_parser):
-        original: bytes = MockContentBase.mock_content[1:].replace(
-            b"}\n\n{\n\n", b"\n,\n"
+        original: bytes = MockContentBase.mock_content.replace(
+            b"}\n{", b"\n,\n"
         )  # we reduce ndjson to single
         encoded: str = base64.b64encode(original).decode("utf-8")
-        last_length = benchmark.pedantic(wrap, [encoded, "single"], iterations=100, rounds=1)
+        last_length = benchmark.pedantic(wrap, [encoded, "single"], iterations=100, rounds=10)
         original_length: int = len(original)
         if original.endswith(b"\n" * 2):
             original_length -= 2
@@ -363,7 +360,7 @@ def test_json_collector_json_like_none(
             b"{" + MockContentBase.mock_content
         )  # we reduce json like (ie: {{"this": "seems", "a: "json"})
         encoded: str = base64.b64encode(original).decode("utf-8")
-        last_length = benchmark.pedantic(wrap, [encoded, None], iterations=100, rounds=1)
+        last_length = benchmark.pedantic(wrap, [encoded, None], iterations=100, rounds=10)
         original_length: int = len(original)
 
         assert last_length == original_length
@@ -379,7 +376,7 @@ def test_json_collector_json_like_disabled(
             b"{" + MockContentBase.mock_content
         )  # we reduce json like (ie: {{"this": "seems", "a: "json"})
         encoded: str = base64.b64encode(original).decode("utf-8")
-        last_length = benchmark.pedantic(wrap, [encoded, "disabled"], iterations=100, rounds=1)
+        last_length = benchmark.pedantic(wrap, [encoded, "disabled"], iterations=100, rounds=10)
         original_length: int = len(original)
 
         assert last_length == original_length
@@ -396,7 +393,7 @@ def test_json_collector_ndjson_none(
         with mock.patch("share.expand_event_list_from_field.json_dumper", new=json_dumper):
             original: bytes = MockContentBase.mock_content  # we keep ndjson
             encoded: str = base64.b64encode(original).decode("utf-8")
-            last_length = benchmark.pedantic(wrap, [encoded, None, True], iterations=100, rounds=1)
+            last_length = benchmark.pedantic(wrap, [encoded, None, True], iterations=100, rounds=10)
             original_length: int = len(original)
             if original.endswith(b"\n" * 2):
                 original_length -= 2
@@ -415,7 +412,7 @@ def test_json_collector_ndjson_ndjson(
         with mock.patch("share.expand_event_list_from_field.json_dumper", new=json_dumper):
             original: bytes = MockContentBase.mock_content  # we keep ndjson
             encoded: str = base64.b64encode(original).decode("utf-8")
-            last_length = benchmark.pedantic(wrap, [encoded, "ndjson", True], iterations=100, rounds=1)
+            last_length = benchmark.pedantic(wrap, [encoded, "ndjson", True], iterations=100, rounds=10)
             original_length: int = len(original)
             if original.endswith(b"\n" * 2):
                 original_length -= 2
@@ -432,9 +429,11 @@ def test_json_collector_expanded_none(
 ) -> None:
     with mock.patch("storage.decorator.json_parser", new=json_parser):
         with mock.patch("share.expand_event_list_from_field.json_dumper", new=json_dumper):
-            original: bytes = b'{"pleaseExpand": [' + MockContentBase.mock_content + b"]}"  # we wrap ndjson in a field
+            original: bytes = b'{"pleaseExpand": [' + MockContentBase.mock_content.replace(
+                b"}\n{", b"}\n,\n{"
+            ) + b"]}"  # we wrap a reduced to single ndjson in a field
             encoded: str = base64.b64encode(original).decode("utf-8")
-            last_length = benchmark.pedantic(wrap, [encoded, None, True], iterations=100, rounds=1)
+            last_length = benchmark.pedantic(wrap, [encoded, None, True], iterations=100, rounds=10)
             original_length: int = len(original)
             if original.endswith(b"\n" * 2):
                 original_length -= 2
@@ -451,9 +450,11 @@ def test_json_collector_expanded_single(
 ) -> None:
     with mock.patch("storage.decorator.json_parser", new=json_parser):
         with mock.patch("share.expand_event_list_from_field.json_dumper", new=json_dumper):
-            original: bytes = b'{"pleaseExpand": [' + MockContentBase.mock_content + b"]}"  # we wrap ndjson in a field
+            original: bytes = b'{"pleaseExpand": [' + MockContentBase.mock_content.replace(
+                b"}\n{", b"}\n,\n{"
+            ) + b"]}"  # we wrap a reduced to single ndjson in a field
             encoded: str = base64.b64encode(original).decode("utf-8")
-            last_length = benchmark.pedantic(wrap, [encoded, "single", True], iterations=100, rounds=1)
+            last_length = benchmark.pedantic(wrap, [encoded, "single", True], iterations=100, rounds=10)
             original_length: int = len(original)
             if original.endswith(b"\n" * 2):
                 original_length -= 2

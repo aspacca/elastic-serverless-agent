@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import Any, Callable, Iterator, Optional, Union
 
 import cysimdjson
+import simdjson
 
 from .json import json_dumper
 from .logger import logger as shared_logger
@@ -32,7 +33,12 @@ class ExpandEventListFromField:
         if len(self._field_to_expand_event_list_from) == 0 or self._field_to_expand_event_list_from not in json_object:
             yield None, starting_offset, 0, True, False
         else:
-            events_list: cysimdjson.JSONArray = json_object[self._field_to_expand_event_list_from]
+            events_list = json_object[self._field_to_expand_event_list_from]
+            if isinstance(events_list, simdjson.Array):
+                events_list = events_list.as_list()
+            elif isinstance(events_list, cysimdjson.JSONArray):
+                events_list = events_list.export()
+
             # let's set to 1 if empty list to avoid division by zero in the line below,
             # for loop will be not executed anyway
             offset_skew = 0
@@ -40,7 +46,7 @@ class ExpandEventListFromField:
             avg_event_length = (ending_offset - starting_offset) / events_list_length
             if self._last_event_expanded_offset is not None and len(events_list) > self._last_event_expanded_offset + 1:
                 offset_skew = self._last_event_expanded_offset + 1
-                events_list = events_list.export()[offset_skew:]
+                events_list = events_list[offset_skew:]
 
             for event_n, event in enumerate(events_list):
                 if self._root_fields_to_add_to_expanded_event:
