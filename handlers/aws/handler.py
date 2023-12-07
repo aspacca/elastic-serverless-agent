@@ -6,6 +6,8 @@ import os
 from typing import Any, Callable, Optional
 
 from aws_lambda_typing import context as context_
+from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.core import patch_all
 
 from share import ExpandEventListFromField, json_parser, parse_config, shared_logger
 from share.secretsmanager import aws_sm_expander
@@ -39,6 +41,8 @@ from .utils import (
 
 _completion_grace_period: int = 120000
 _expanders: list[Callable[[str], str]] = [aws_sm_expander]
+
+patch_all()
 
 
 @capture_serverless
