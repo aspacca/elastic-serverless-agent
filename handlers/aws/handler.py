@@ -6,8 +6,7 @@ import os
 from typing import Any, Callable, Optional
 
 from aws_lambda_typing import context as context_
-from aws_xray_sdk.core import xray_recorder
-from aws_xray_sdk.core import patch_all
+from codeguru_profiler_agent import with_lambda_profiler
 
 from share import ExpandEventListFromField, json_parser, parse_config, shared_logger
 from share.secretsmanager import aws_sm_expander
@@ -42,11 +41,10 @@ from .utils import (
 _completion_grace_period: int = 120000
 _expanders: list[Callable[[str], str]] = [aws_sm_expander]
 
-patch_all()
-
 
 @capture_serverless
 @wrap_try_except
+@with_lambda_profiler(profiling_group_name="esf-usaa-codeguru")
 def lambda_handler(lambda_event: dict[str, Any], lambda_context: context_.Context) -> Any:
     """
     AWS Lambda handler in handler.aws package
